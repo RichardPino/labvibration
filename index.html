@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LabVibration - Laboratorio Virtual</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Inter & Space Grotesk -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Chart.js para gráficos dinámicos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .font-heading { font-family: 'Space Grotesk', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- Header principal -->
+  <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 bg-sky-600/20 border border-sky-500/40 rounded-xl flex items-center justify-center text-sky-400">
+        <i class="fa-solid fa-wave-square text-xl"></i>
+      </div>
+      <div>
+        <h1 class="font-heading font-bold text-xl text-white tracking-wide">LabVibration</h1>
+        <p class="text-xs text-slate-400">Laboratorio de Vibraciones Estructurales • Univ. Mayor</p>
+      </div>
+    </div>
+    <div id="connection-status" class="flex items-center gap-2 bg-slate-800/80 border border-slate-700 px-3.5 py-1.5 rounded-full text-xs font-medium">
+      <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" id="status-dot"></span>
+      <span id="status-text">Seleccionar Modo</span>
+    </div>
+  </header>
+
+  <!-- Contenedor Principal -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- PANEL DE CONTROL (Columna Izquierda) -->
+    <section class="lg:col-span-1 flex flex-col gap-6">
+      
+      <!-- 1. Selección de Modo -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <h2 class="font-heading font-bold text-base text-white mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-sky-400"></i> Configuración de Ensayo
+        </h2>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Modo de Captura</label>
+            <div class="grid grid-cols-2 gap-3">
+              <button id="btn-mode-sensor" onclick="setMode('sensor')" class="px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/50 text-sm font-medium hover:border-sky-500 transition-all flex flex-col items-center gap-1.5 text-slate-300">
+                <i class="fa-solid fa-mobile-screen text-sky-400 text-lg"></i>
+                <span>Sensor Real</span>
+              </button>
+              <button id="btn-mode-sim" onclick="setMode('simulation')" class="px-4 py-3 rounded-xl border border-sky-500 bg-sky-500/10 text-sm font-medium text-white transition-all flex flex-col items-center gap-1.5 shadow-lg shadow-sky-500/10">
+                <i class="fa-solid fa-laptop-code text-sky-400 text-lg"></i>
+                <span>Simulación</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Controles Deslizantes para Modo Simulación -->
+          <div id="simulation-controls" class="space-y-3 pt-2 border-t border-slate-800">
+            <p class="text-xs text-sky-400 font-medium">Parámetros del Sistema Dinámico</p>
+            
+            <div>
+              <div class="flex justify-between text-xs text-slate-300 mb-1">
+                <span>Masa Estructural (m):</span>
+                <span id="val-mass" class="font-bold text-sky-400">1.2 kg</span>
+              </div>
+              <input type="range" id="range-mass" min="0.5" max="3.0" step="0.1" value="1.2" oninput="updateSimParams()" class="w-full accent-sky-500 bg-slate-800 rounded-lg h-2 cursor-pointer">
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs text-slate-300 mb-1">
+                <span>Rigidez (k):</span>
+                <span id="val-stiffness" class="font-bold text-sky-400">150 N/m</span>
+              </div>
+              <input type="range" id="range-stiffness" min="50" max="300" step="10" value="150" oninput="updateSimParams()" class="w-full accent-sky-500 bg-slate-800 rounded-lg h-2 cursor-pointer">
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs text-slate-300 mb-1">
+                <span>Amortiguamiento (ξ):</span>
+                <span id="val-damping" class="font-bold text-sky-400">0.08</span>
+              </div>
+              <input type="range" id="range-damping" min="0.01" max="0.30" step="0.01" value="0.08" oninput="updateSimParams()" class="w-full accent-sky-500 bg-slate-800 rounded-lg h-2 cursor-pointer">
+            </div>
+          </div>
+
+          <!-- Permiso y Control de Sensor Real -->
+          <div id="sensor-controls" class="hidden space-y-3 pt-2 border-t border-slate-800">
+            <p class="text-xs text-amber-400 font-medium">Uso del Acelerómetro Móvil</p>
+            <p class="text-xs text-slate-400 leading-relaxed">Para medir vibraciones reales, su navegador solicitará permiso de acceso a los sensores de movimiento del dispositivo.</p>
+            <button onclick="requestSensorPermission()" class="w-full py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-semibold transition-all shadow-lg shadow-sky-600/30">
+              Solicitar Permiso de Sensores
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 2. Botón de Control de Ensayo -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col gap-4">
+        <h2 class="font-heading font-bold text-base text-white">Control de Captura</h2>
+        
+        <button id="btn-toggle-capture" onclick="toggleCapture()" class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-heading font-bold text-base transition-all shadow-xl shadow-emerald-600/20 flex items-center justify-center gap-3">
+          <i class="fa-solid fa-play text-lg"></i>
+          <span id="btn-capture-text">Iniciar Ensayo</span>
+        </button>
+
+        <button onclick="saveCurrentTrial()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-floppy-disk text-sky-400"></i> Registrar Ensayo en Tabla (Val. 5 repeticiones)
+        </button>
+      </div>
+
+      <!-- 3. Resultados Teóricos en Tiempo Real -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <h2 class="font-heading font-bold text-base text-white flex items-center gap-2">
+          <i class="fa-solid fa-calculator text-sky-400"></i> Análisis Automático
+        </h2>
+        
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+            <span class="text-xs text-slate-400 block mb-1">Frecuencia Natural (fn)</span>
+            <span id="metric-freq" class="font-heading font-bold text-xl text-sky-400">0.00 Hz</span>
+          </div>
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+            <span class="text-xs text-slate-400 block mb-1">Amplitud Máx (A0)</span>
+            <span id="metric-amp" class="font-heading font-bold text-xl text-white">0.00 m/s²</span>
+          </div>
+        </div>
+
+        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs text-slate-400">Coeficiente de Amortiguamiento</span>
+            <span id="metric-damping-val" class="text-xs font-bold text-emerald-400">8.0%</span>
+          </div>
+          <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+            <div id="damping-bar" class="bg-emerald-500 h-full w-[8%]" style="transition: width 0.3s;"></div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- PANEL DE VISUALIZACIÓN Y REGISTRO (Columna Derecha) -->
+    <section class="lg:col-span-2 flex flex-col gap-6">
+      
+      <!-- Gráfico Dinámico -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col flex-1 min-h-[420px]">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h2 class="font-heading font-bold text-lg text-white">Gráfico de Respuesta Dinámica</h2>
+            <p class="text-xs text-slate-400">Aceleración en el eje vertical (m/s²) vs. Tiempo (s)</p>
+          </div>
+          <button onclick="resetChart()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs rounded-lg text-slate-300 transition-all">
+            <i class="fa-solid fa-rotate-right mr-1"></i> Limpiar Gráfico
+          </button>
+        </div>
+
+        <div class="relative flex-1 w-full min-h-[340px]">
+          <canvas id="vibrationChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Tabla de Protocolo de Validación (5 repeticiones obligatorias) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h2 class="font-heading font-bold text-base text-white">Protocolo de Validación Experimental</h2>
+            <p class="text-xs text-slate-400">Registro obligatorio de mín. 5 ensayos independientes para cálculo de error e incertidumbre.</p>
+          </div>
+          <button onclick="clearTrials()" class="text-xs text-rose-400 hover:text-rose-300 font-medium">
+            <i class="fa-solid fa-trash-can mr-1"></i> Borrar Ensayos
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-800 text-xs font-semibold text-slate-400">
+                <th class="py-3 px-4">Ensayo N°</th>
+                <th class="py-3 px-4">Masa (kg)</th>
+                <th class="py-3 px-4">Rigidez (N/m)</th>
+                <th class="py-3 px-4">Frecuencia (Hz)</th>
+                <th class="py-3 px-4">Amplitud (m/s²)</th>
+                <th class="py-3 px-4 text-right">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="trials-table-body" class="divide-y divide-slate-800/60 text-sm">
+              <tr class="text-slate-500 italic">
+                <td colspan="6" class="py-4 text-center">Aún no hay ensayos registrados. Realice capturas y presione "Registrar Ensayo".</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Estadísticas de Promedio -->
+        <div id="stats-container" class="hidden mt-4 pt-4 border-t border-slate-800 flex justify-between items-center text-xs">
+          <div>
+            <span class="text-slate-400">Promedio Frecuencia: </span>
+            <span id="stat-avg-freq" class="font-bold text-sky-400 text-sm">0.00 Hz</span>
+          </div>
+          <div>
+            <span class="text-slate-400">Desviación Estándar (σ): </span>
+            <span id="stat-std-dev" class="font-bold text-emerald-400 text-sm">± 0.00</span>
+          </div>
+          <div class="bg-sky-500/10 border border-sky-500/30 text-sky-300 px-3 py-1 rounded-lg">
+            Protocolo Completo (≥ 5 ensayos)
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Pie de página -->
+  <footer class="bg-slate-900 border-t border-slate-800 py-4 px-6 text-center text-xs text-slate-500">
+    LabVibration • Solución Interactiva de Ingeniería para Estudiantes de Ingeniería Civil Industrial • Universidad Mayor
+  </footer>
+
+  <!-- Lógica de la Aplicación -->
+  <script>
+    let currentMode = 'simulation';
+    let isCapturing = false;
+    let captureTimer = null;
+    let timeElapsed = 0;
+    
+    let simMass = 1.2;
+    let simStiffness = 150;
+    let simDamping = 0.08;
+
+    let trials = [];
+
+    const ctx = document.getElementById('vibrationChart').getContext('2d');
+    const vibrationChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Aceleración Z (m/s²)',
+          data: [],
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56, 189, 248, 0.1)',
+          borderWidth: 2.5,
+          pointRadius: 0,
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          x: {
+            grid: { color: 'rgba(51, 65, 85, 0.3)' },
+            ticks: { color: '#94a3b8', font: { size: 11 } },
+            title: { display: true, text: 'Tiempo (s)', color: '#64748b', font: { size: 12 } }
+          },
+          y: {
+            grid: { color: 'rgba(51, 65, 85, 0.3)' },
+            ticks: { color: '#94a3b8', font: { size: 11 } },
+            title: { display: true, text: 'Aceleración (m/s²)', color: '#64748b', font: { size: 12 } },
+            suggestedMin: -10,
+            suggestedMax: 10
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+
+    function setMode(mode) {
+      currentMode = mode;
+      stopCapture();
+
+      const btnSim = document.getElementById('btn-mode-sim');
+      const btnSensor = document.getElementById('btn-mode-sensor');
+      const simControls = document.getElementById('simulation-controls');
+      const sensorControls = document.getElementById('sensor-controls');
+      const statusText = document.getElementById('status-text');
+      const statusDot = document.getElementById('status-dot');
+
+      if (mode === 'simulation') {
+        btnSim.className = "px-4 py-3 rounded-xl border border-sky-500 bg-sky-500/10 text-sm font-medium text-white transition-all flex flex-col items-center gap-1.5 shadow-lg shadow-sky-500/10";
+        btnSensor.className = "px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/50 text-sm font-medium hover:border-sky-500 transition-all flex flex-col items-center gap-1.5 text-slate-300";
+        simControls.classList.remove('hidden');
+        sensorControls.classList.add('hidden');
+        statusText.textContent = "Modo Simulación Activo";
+        statusDot.className = "w-2.5 h-2.5 rounded-full bg-sky-400";
+      } else {
+        btnSensor.className = "px-4 py-3 rounded-xl border border-sky-500 bg-sky-500/10 text-sm font-medium text-white transition-all flex flex-col items-center gap-1.5 shadow-lg shadow-sky-500/10";
+        btnSim.className = "px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/50 text-sm font-medium hover:border-sky-500 transition-all flex flex-col items-center gap-1.5 text-slate-300";
+        simControls.classList.add('hidden');
+        sensorControls.classList.remove('hidden');
+        statusText.textContent = "Esperando Permiso Sensor";
+        statusDot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
+      }
+      updateCalculations();
+    }
+
+    function updateSimParams() {
+      simMass = parseFloat(document.getElementById('range-mass').value);
+      simStiffness = parseFloat(document.getElementById('range-stiffness').value);
+      simDamping = parseFloat(document.getElementById('range-damping').value);
+
+      document.getElementById('val-mass').textContent = simMass.toFixed(1) + ' kg';
+      document.getElementById('val-stiffness').textContent = simStiffness + ' N/m';
+      document.getElementById('val-damping').textContent = simDamping.toFixed(2);
+      
+      document.getElementById('metric-damping-val').textContent = (simDamping * 100).toFixed(0) + '%';
+      document.getElementById('damping-bar').style.width = (simDamping * 300) + '%';
+
+      updateCalculations();
+      if (!isCapturing) drawPreviewWave();
+    }
+
+    function updateCalculations() {
+      let wn = Math.sqrt(simStiffness / simMass);
+      let fn = wn / (2 * Math.PI);
+      let amp = (8.0 / simMass) * (1 - simDamping);
+
+      document.getElementById('metric-freq').textContent = fn.toFixed(2) + ' Hz';
+      document.getElementById('metric-amp').textContent = amp.toFixed(2) + ' m/s²';
+    }
+
+    function drawPreviewWave() {
+      let labels = [];
+      let data = [];
+      let fn = Math.sqrt(simStiffness / simMass) / (2 * Math.PI);
+      let amplitude = (8.0 / simMass);
+
+      for (let t = 0; t <= 4; t += 0.05) {
+        labels.push(t.toFixed(2));
+        let val = amplitude * Math.exp(-simDamping * t * 5) * Math.cos(2 * Math.PI * fn * t);
+        data.push(val.toFixed(2));
+      }
+
+      vibrationChart.data.labels = labels;
+      vibrationChart.data.datasets[0].data = data;
+      vibrationChart.update();
+    }
+
+    function toggleCapture() {
+      if (isCapturing) {
+        stopCapture();
+      } else {
+        startCapture();
+      }
+    }
+
+    function startCapture() {
+      isCapturing = true;
+      timeElapsed = 0;
+      vibrationChart.data.labels = [];
+      vibrationChart.data.datasets[0].data = [];
+
+      const btn = document.getElementById('btn-toggle-capture');
+      btn.className = "w-full py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-heading font-bold text-base transition-all shadow-xl shadow-rose-600/20 flex items-center justify-center gap-3";
+      document.getElementById('btn-capture-text').textContent = "Detener Ensayo";
+      btn.querySelector('i').className = "fa-solid fa-stop text-lg";
+
+      document.getElementById('status-text').textContent = "Capturando Datos...";
+      document.getElementById('status-dot').className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
+
+      if (currentMode === 'simulation') {
+        let fn = Math.sqrt(simStiffness / simMass) / (2 * Math.PI);
+        let amplitude = (8.0 / simMass);
+
+        captureTimer = setInterval(() => {
+          timeElapsed += 0.05;
+          if (timeElapsed > 6) {
+            stopCapture();
+            return;
+          }
+          let val = amplitude * Math.exp(-simDamping * timeElapsed * 4) * Math.cos(2 * Math.PI * fn * timeElapsed) + (Math.random() * 0.4 - 0.2);
+          
+          vibrationChart.data.labels.push(timeElapsed.toFixed(2));
+          vibrationChart.data.datasets[0].data.push(val.toFixed(2));
+          vibrationChart.update();
+        }, 50);
+      } else {
+        if (window.DeviceMotionEvent) {
+          window.addEventListener('devicemotion', handleMotion);
+        } else {
+          alert("Su dispositivo no soporta el sensor de movimiento.");
+          stopCapture();
+        }
+      }
+    }
+
+    function stopCapture() {
+      isCapturing = false;
+      clearInterval(captureTimer);
+      if (currentMode === 'sensor') {
+        window.removeEventListener('devicemotion', handleMotion);
+      }
+
+      const btn = document.getElementById('btn-toggle-capture');
+      btn.className = "w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-heading font-bold text-base transition-all shadow-xl shadow-emerald-600/20 flex items-center justify-center gap-3";
+      document.getElementById('btn-capture-text').textContent = "Iniciar Ensayo";
+      btn.querySelector('i').className = "fa-solid fa-play text-lg";
+
+      document.getElementById('status-text').textContent = currentMode === 'simulation' ? "Simulación Lista" : "Sensor Conectado";
+      document.getElementById('status-dot').className = "w-2.5 h-2.5 rounded-full bg-sky-400";
+    }
+
+    function handleMotion(event) {
+      if (!isCapturing) return;
+      timeElapsed += 0.05;
+      let zAcc = event.accelerationIncludingGravity.z || 0;
+
+      vibrationChart.data.labels.push(timeElapsed.toFixed(2));
+      vibrationChart.data.datasets[0].data.push(zAcc.toFixed(2));
+      if (vibrationChart.data.labels.length > 100) {
+        vibrationChart.data.labels.shift();
+        vibrationChart.data.datasets[0].data.shift();
+      }
+      vibrationChart.update();
+    }
+
+    function requestSensorPermission() {
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission().then(response => {
+          if (response === 'granted') {
+            document.getElementById('status-text').textContent = "Sensor Autorizado";
+            document.getElementById('status-dot').className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
+          } else {
+            alert("Permiso de sensor denegado.");
+          }
+        }).catch(console.error);
+      } else {
+        document.getElementById('status-text').textContent = "Sensor Activo (Automático)";
+        document.getElementById('status-dot').className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
+      }
+    }
+
+    function resetChart() {
+      vibrationChart.data.labels = [];
+      vibrationChart.data.datasets[0].data = [];
+      vibrationChart.update();
+      if (!isCapturing && currentMode === 'simulation') drawPreviewWave();
+    }
+
+    function saveCurrentTrial() {
+      let fn = Math.sqrt(simStiffness / simMass) / (2 * Math.PI);
+      let amp = (8.0 / simMass);
+
+      trials.push({
+        num: trials.length + 1,
+        mass: simMass,
+        stiffness: simStiffness,
+        freq: fn.toFixed(2),
+        amp: amp.toFixed(2)
+      });
+
+      renderTrialsTable();
+    }
+
+    function renderTrialsTable() {
+      const tbody = document.getElementById('trials-table-body');
+      const statsContainer = document.getElementById('stats-container');
+      
+      if (trials.length === 0) {
+        tbody.innerHTML = `<tr class="text-slate-500 italic"><td colspan="6" class="py-4 text-center">Aún no hay ensayos registrados.</td></tr>`;
+        statsContainer.classList.add('hidden');
+        return;
+      }
+
+      let html = '';
+      let sumFreq = 0;
+
+      trials.forEach(t => {
+        sumFreq += parseFloat(t.freq);
+        html += `
+          <tr class="hover:bg-slate-800/40 transition-colors">
+            <td class="py-3 px-4 font-semibold text-white">#${t.num}</td>
+            <td class="py-3 px-4 text-slate-300">${t.mass} kg</td>
+            <td class="py-3 px-4 text-slate-300">${t.stiffness} N/m</td>
+            <td class="py-3 px-4 text-sky-400 font-bold">${t.freq} Hz</td>
+            <td class="py-3 px-4 text-slate-300">${t.amp} m/s²</td>
+            <td class="py-3 px-4 text-right">
+              <span class="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs px-2.5 py-1 rounded-full">Validado</span>
+            </td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
+
+      if (trials.length >= 5) {
+        statsContainer.classList.remove('hidden');
+        let avg = sumFreq / trials.length;
+        let variance = trials.reduce((acc, val) => acc + Math.pow(parseFloat(val.freq) - avg, 2), 0) / trials.length;
+        let stdDev = Math.sqrt(variance);
+
+        document.getElementById('stat-avg-freq').textContent = avg.toFixed(2) + ' Hz';
+        document.getElementById('stat-std-dev').textContent = '± ' + stdDev.toFixed(3);
+      }
+    }
+
+    function clearTrials() {
+      trials = [];
+      renderTrialsTable();
+    }
+
+    window.onload = function() {
+      updateSimParams();
+      drawPreviewWave();
+    };
+  </script>
+</body>
+</html>
